@@ -1,0 +1,4 @@
+{
+  "prisma.prismaLanguageServer.schemaFilePatterns": ["prisma/**/*.prisma"],
+  "prisma.prismaLanguageServer.validateSchema": true
+}

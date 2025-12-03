@@ -1,4 +1,11 @@
-// Prisma Schema para API de Estoque de Supermercado
+// ============================================================================
+// SCHEMA PRISMA - SISTEMA WEB DE CONTROLE FINANCEIRO DE MERCANTIL
+// ============================================================================
+// Este schema define a estrutura do banco de dados para o sistema de gestão
+// de vendas, estoque e financeiro de um mercantil.
+// 
+// Baseado nos Requisitos Funcionais (RF01-RF22) do documento de especificação.
+// ============================================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -6,71 +13,343 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("Estoque")
 }
 
-// Categoria de produtos (ex: Bebidas, Laticínios, Carnes, etc.)
+// ============================================================================
+// MÓDULO: USUÁRIOS E SEGURANÇA (RF20, RF21, RF22)
+// ============================================================================
+
+/// Usuário do sistema com controle de acesso por cargo
+/// RF20: Permitir autenticação de usuários
+/// RF21: Controle de acesso por cargo (admin, caixa, gerente)
+model User {
+  id        String   @id @default(uuid())
+  name      String   /// Nome completo do usuário
+  email     String   @unique /// Email para login
+  password  String   /// Senha criptografada
+  role      String   @default("CAIXA") /// Cargo: ADMIN, GERENTE, CAIXA
+  isActive  Boolean  @default(true) /// Status do usuário
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  sales     Sale[]     /// Vendas realizadas pelo usuário
+  logs      AuditLog[] /// Logs de ações do usuário
+
+  @@map("Usuarios")
+}
+
+/// Log de auditoria para ações críticas do sistema
+/// RF22: Manter logs de acesso e ações críticas
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String   /// Usuário que realizou a ação
+  action    String   /// Tipo de ação (CREATE, UPDATE, DELETE, LOGIN, etc)
+  entity    String   /// Entidade afetada (Product, Sale, etc)
+  entityId  String?  /// ID da entidade afetada
+  details   String?  /// Detalhes adicionais em JSON
+  ipAddress String?  /// Endereço IP do usuário
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("LogsAuditoria")
+}
+
+// ============================================================================
+// MÓDULO: GESTÃO DE PRODUTOS E ESTOQUE (RF01-RF05)
+// ============================================================================
+
+/// Categoria de produtos para organização do estoque
+/// Exemplo: Bebidas, Laticínios, Carnes, Higiene, etc.
 model Category {
   id          String    @id @default(uuid())
-  name        String    @unique
-  description String?
+  name        String    @unique /// Nome único da categoria
+  description String?   /// Descrição opcional
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  products    Product[]
+
+  // Relacionamentos
+  products Product[] /// Produtos desta categoria
 
   @@map("Categorias")
 }
 
-// Fornecedor dos produtos
+/// Fornecedor de produtos
+/// RF13: Permitir cadastro de fornecedores
+/// RF14: Registrar pedidos de compra de fornecedores
 model Supplier {
-  id        String    @id @default(uuid())
-  name      String
-  email     String?   @unique
-  phone     String?
-  address   String?
-  cnpj      String?   @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  products  Product[]
+  id        String   @id @default(uuid())
+  name      String   /// Razão social ou nome fantasia
+  email     String?  @unique /// Email de contato
+  phone     String?  /// Telefone de contato
+  address   String?  /// Endereço completo
+  cnpj      String?  @unique /// CNPJ do fornecedor
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  products       Product[]       /// Produtos fornecidos
+  purchaseOrders PurchaseOrder[] /// Pedidos de compra
 
   @@map("Fornecedores")
 }
 
-// Produto do estoque
+/// Produto do estoque
+/// RF01: Cadastro de produtos (nome, descrição, categoria, fornecedor, preços, validade)
 model Product {
-  id              String            @id @default(uuid())
-  name            String
-  description     String?
-  barcode         String?           @unique
-  price           Float
-  costPrice       Float
-  quantity        Int               @default(0)
-  minQuantity     Int               @default(10)
-  unit            String            @default("UN")
-  categoryId      String
-  supplierId      String?
-  isActive        Boolean           @default(true)
-  expirationDate  DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  category        Category          @relation(fields: [categoryId], references: [id])
-  supplier        Supplier?         @relation(fields: [supplierId], references: [id])
-  stockMovements  StockMovement[]
+  id             String    @id @default(uuid())
+  name           String    /// Nome do produto
+  description    String?   /// Descrição detalhada
+  barcode        String?   @unique /// Código de barras (EAN)
+  costPrice      Float     /// Preço de custo (compra)
+  salePrice      Float     /// Preço de venda
+  quantity       Int       @default(0) /// Quantidade atual em estoque
+  minQuantity    Int       @default(10) /// Quantidade mínima (alerta de estoque baixo)
+  unit           String    @default("UN") /// Unidade: UN, KG, L, CX, PCT
+  categoryId     String    /// Categoria do produto
+  supplierId     String?   /// Fornecedor principal
+  isActive       Boolean   @default(true) /// Produto ativo para venda
+  expirationDate DateTime? /// Data de validade (para produtos perecíveis)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  @@map("produtos")
+  // Relacionamentos
+  category       Category          @relation(fields: [categoryId], references: [id])
+  supplier       Supplier?         @relation(fields: [supplierId], references: [id])
+  stockMovements StockMovement[]   /// Movimentações de estoque
+  saleItems      SaleItem[]        /// Itens de venda
+  purchaseItems  PurchaseItem[]    /// Itens de pedido de compra
+
+  @@map("Produtos")
 }
 
-// Movimentação de estoque (entrada/saída)
+/// Movimentação de estoque (entrada/saída)
+/// RF02: Controlar entrada e saída de produtos no estoque
+/// RF04: Registrar histórico de movimentações de estoque
 model StockMovement {
-  id          String       @id @default(uuid())
-  productId   String
-  type        String       // ENTRY, EXIT, ADJUSTMENT, LOSS, RETURN
-  quantity    Int
-  reason      String?
-  unitPrice   Float?
-  totalPrice  Float?
-  createdAt   DateTime     @default(now())
-  product     Product      @relation(fields: [productId], references: [id])
+  id         String   @id @default(uuid())
+  productId  String   /// Produto movimentado
+  type       String   /// Tipo: ENTRY (entrada), EXIT (saída), ADJUSTMENT, LOSS, RETURN
+  quantity   Int      /// Quantidade movimentada (sempre positivo)
+  reason     String?  /// Motivo da movimentação
+  unitPrice  Float?   /// Preço unitário (para entradas)
+  totalPrice Float?   /// Valor total da movimentação
+  createdAt  DateTime @default(now())
 
-  @@map("MovimentacaoEstoque")
+  // Relacionamentos
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("MovimentacoesEstoque")
+}
+
+// ============================================================================
+// MÓDULO: GESTÃO DE CLIENTES (RF10, RF11, RF12)
+// ============================================================================
+
+/// Cliente do mercantil
+/// RF10: Permitir cadastro de clientes
+/// RF12: Controlar limite de crédito/fiado dos clientes
+model Client {
+  id           String   @id @default(uuid())
+  name         String   /// Nome completo do cliente
+  cpf          String?  @unique /// CPF do cliente
+  email        String?  @unique /// Email de contato
+  phone        String?  /// Telefone de contato
+  address      String?  /// Endereço completo
+  creditLimit  Float    @default(0) /// Limite de crédito/fiado
+  currentDebt  Float    @default(0) /// Dívida atual (fiado)
+  isActive     Boolean  @default(true) /// Cliente ativo
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  sales        Sale[]            /// Vendas do cliente (RF11: histórico de compras)
+  transactions ClientTransaction[] /// Transações de crédito/débito
+
+  @@map("Clientes")
+}
+
+/// Transações de crédito do cliente (fiado)
+/// Controla pagamentos e débitos do cliente
+model ClientTransaction {
+  id          String   @id @default(uuid())
+  clientId    String   /// Cliente
+  type        String   /// Tipo: CREDIT (pagamento), DEBIT (compra fiado)
+  amount      Float    /// Valor da transação
+  description String?  /// Descrição da transação
+  saleId      String?  /// Venda relacionada (se for débito)
+  createdAt   DateTime @default(now())
+
+  // Relacionamentos
+  client Client @relation(fields: [clientId], references: [id])
+  sale   Sale?  @relation(fields: [saleId], references: [id])
+
+  @@map("TransacoesCliente")
+}
+
+// ============================================================================
+// MÓDULO: GESTÃO DE VENDAS (RF06-RF09)
+// ============================================================================
+
+/// Venda realizada
+/// RF06: Permitir realização de vendas (sem PDV dedicado)
+/// RF07: Registrar diferentes formas de pagamento
+/// RF09: Aplicar descontos e promoções durante a venda
+model Sale {
+  id             String   @id @default(uuid())
+  clientId       String?  /// Cliente (opcional para venda avulsa)
+  userId         String   /// Usuário que realizou a venda
+  subtotal       Float    /// Valor total dos produtos
+  discount       Float    @default(0) /// Desconto aplicado (RF09)
+  total          Float    /// Valor final da venda
+  paymentMethod  String   /// Forma de pagamento: CASH, CARD, PIX, FIADO (RF07)
+  paymentStatus  String   @default("PAID") /// Status: PAID, PENDING, CANCELLED
+  notes          String?  /// Observações da venda
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relacionamentos
+  client       Client?             @relation(fields: [clientId], references: [id])
+  user         User                @relation(fields: [userId], references: [id])
+  items        SaleItem[]          /// Itens da venda
+  transactions ClientTransaction[] /// Transações de fiado
+  receipt      Receipt?            /// Cupom/nota da venda
+
+  @@map("Vendas")
+}
+
+/// Item de uma venda
+model SaleItem {
+  id        String @id @default(uuid())
+  saleId    String /// Venda
+  productId String /// Produto vendido
+  quantity  Int    /// Quantidade vendida
+  unitPrice Float  /// Preço unitário no momento da venda
+  discount  Float  @default(0) /// Desconto no item
+  total     Float  /// Total do item (quantidade * preço - desconto)
+
+  // Relacionamentos
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("ItensVenda")
+}
+
+/// Cupom/Nota da venda
+/// RF08: Emitir nota/cupom da venda
+model Receipt {
+  id        String   @id @default(uuid())
+  saleId    String   @unique /// Venda relacionada
+  number    String   @unique /// Número do cupom
+  content   String   /// Conteúdo do cupom (texto ou JSON)
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  sale Sale @relation(fields: [saleId], references: [id])
+
+  @@map("Cupons")
+}
+
+// ============================================================================
+// MÓDULO: GESTÃO DE FORNECEDORES E COMPRAS (RF13, RF14)
+// ============================================================================
+
+/// Pedido de compra para fornecedor
+/// RF14: Registrar pedidos de compra de fornecedores
+model PurchaseOrder {
+  id           String   @id @default(uuid())
+  supplierId   String   /// Fornecedor
+  status       String   @default("PENDING") /// Status: PENDING, APPROVED, RECEIVED, CANCELLED
+  totalAmount  Float    /// Valor total do pedido
+  expectedDate DateTime? /// Data prevista de entrega
+  receivedDate DateTime? /// Data de recebimento
+  notes        String?  /// Observações
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relacionamentos
+  supplier Supplier       @relation(fields: [supplierId], references: [id])
+  items    PurchaseItem[] /// Itens do pedido
+
+  @@map("PedidosCompra")
+}
+
+/// Item de um pedido de compra
+model PurchaseItem {
+  id              String @id @default(uuid())
+  purchaseOrderId String /// Pedido de compra
+  productId       String /// Produto
+  quantity        Int    /// Quantidade solicitada
+  unitPrice       Float  /// Preço unitário
+  total           Float  /// Total do item
+
+  // Relacionamentos
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@map("ItensPedidoCompra")
+}
+
+// ============================================================================
+// MÓDULO: GESTÃO FINANCEIRA (RF15, RF16, RF17)
+// ============================================================================
+
+/// Contas a pagar e a receber
+/// RF15: Registrar contas a pagar e a receber
+model FinancialAccount {
+  id          String    @id @default(uuid())
+  type        String    /// Tipo: PAYABLE (a pagar), RECEIVABLE (a receber)
+  description String    /// Descrição da conta
+  amount      Float     /// Valor da conta
+  dueDate     DateTime  /// Data de vencimento
+  paidDate    DateTime? /// Data de pagamento (se pago)
+  status      String    @default("PENDING") /// Status: PENDING, PAID, OVERDUE, CANCELLED
+  category    String?   /// Categoria: SUPPLIER, RENT, SALARY, UTILITIES, OTHER
+  referenceId String?   /// ID de referência (pedido de compra, venda, etc)
+  notes       String?   /// Observações
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("ContasFinanceiras")
+}
+
+/// Registro de fluxo de caixa
+/// RF16: Gerar fluxo de caixa (diário, mensal e anual)
+model CashFlow {
+  id          String   @id @default(uuid())
+  type        String   /// Tipo: INCOME (entrada), EXPENSE (saída)
+  category    String   /// Categoria: SALE, PURCHASE, SALARY, RENT, OTHER
+  description String   /// Descrição
+  amount      Float    /// Valor
+  date        DateTime /// Data da movimentação
+  referenceId String?  /// ID de referência (venda, conta, etc)
+  createdAt   DateTime @default(now())
+
+  @@map("FluxoCaixa")
+}
+
+// ============================================================================
+// MÓDULO: PROMOÇÕES E DESCONTOS (RF09)
+// ============================================================================
+
+/// Promoções e descontos
+/// RF09: Aplicar descontos e promoções durante a venda
+model Promotion {
+  id          String    @id @default(uuid())
+  name        String    /// Nome da promoção
+  description String?   /// Descrição
+  type        String    /// Tipo: PERCENTAGE, FIXED_AMOUNT, BUY_X_GET_Y
+  value       Float     /// Valor do desconto (% ou valor fixo)
+  minPurchase Float?    /// Valor mínimo de compra para aplicar
+  startDate   DateTime  /// Data de início
+  endDate     DateTime  /// Data de fim
+  isActive    Boolean   @default(true) /// Promoção ativa
+  productIds  String?   /// IDs dos produtos (JSON array) - null = todos
+  categoryIds String?   /// IDs das categorias (JSON array) - null = todas
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("Promocoes")
 }

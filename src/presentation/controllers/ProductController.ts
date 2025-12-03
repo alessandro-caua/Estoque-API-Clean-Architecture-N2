@@ -33,7 +33,7 @@ export class ProductController {
         name,
         description,
         barcode,
-        price,
+        salePrice,
         costPrice,
         quantity,
         minQuantity,
@@ -44,9 +44,9 @@ export class ProductController {
         expirationDate,
       } = req.body;
 
-      if (!name || !categoryId || price === undefined || costPrice === undefined) {
+      if (!name || !categoryId || salePrice === undefined || costPrice === undefined) {
         return res.status(400).json({
-          error: 'Nome, categoria, preço e preço de custo são obrigatórios',
+          error: 'Nome, categoria, preço de venda e preço de custo são obrigatórios',
         });
       }
 
@@ -54,7 +54,7 @@ export class ProductController {
         name,
         description,
         barcode,
-        price,
+        salePrice,
         costPrice,
         quantity,
         minQuantity,
@@ -171,7 +171,7 @@ export class ProductController {
         name,
         description,
         barcode,
-        price,
+        salePrice,
         costPrice,
         quantity,
         minQuantity,
@@ -186,7 +186,7 @@ export class ProductController {
         name,
         description,
         barcode,
-        price,
+        salePrice,
         costPrice,
         quantity,
         minQuantity,

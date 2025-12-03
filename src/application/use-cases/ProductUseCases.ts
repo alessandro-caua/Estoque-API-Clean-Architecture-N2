@@ -9,7 +9,7 @@ export interface CreateProductDTO {
   name: string;
   description?: string;
   barcode?: string;
-  price: number;
+  salePrice: number;
   costPrice: number;
   quantity?: number;
   minQuantity?: number;
@@ -24,7 +24,7 @@ export interface UpdateProductDTO {
   name?: string;
   description?: string;
   barcode?: string;
-  price?: number;
+  salePrice?: number;
   costPrice?: number;
   quantity?: number;
   minQuantity?: number;
@@ -70,7 +70,7 @@ export class CreateProductUseCase {
       name: data.name,
       description: data.description,
       barcode: data.barcode,
-      price: data.price,
+      salePrice: data.salePrice,
       costPrice: data.costPrice,
       quantity: data.quantity ?? 0,
       minQuantity: data.minQuantity ?? 10,

@@ -23,7 +23,7 @@ export class PrismaStockMovementRepository implements IStockMovementRepository {
             name: data.product.name,
             description: data.product.description,
             barcode: data.product.barcode,
-            price: data.product.price,
+            salePrice: data.product.salePrice,
             costPrice: data.product.costPrice,
             quantity: data.product.quantity,
             minQuantity: data.product.minQuantity,

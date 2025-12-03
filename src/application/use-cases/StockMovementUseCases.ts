@@ -121,7 +121,7 @@ export class GetStockReportUseCase {
     ]);
 
     const totalValue = products.reduce((sum, product) => {
-      return sum + (product.price * product.quantity);
+      return sum + (product.salePrice * product.quantity);
     }, 0);
 
     // Pegar os 10 movimentos mais recentes

@@ -1,18 +1,32 @@
-// Configuração da Aplicação Express
+// ============================================================================
+// CONFIGURAÇÃO DA APLICAÇÃO EXPRESS
+// ============================================================================
+// Arquivo principal de configuração da API de Estoque para Supermercado.
+// Implementa injeção de dependências seguindo Clean Architecture.
+// ============================================================================
+
 import express, { Application, Request, Response, NextFunction } from 'express';
 
 // Importar Prisma Client
 import { prisma } from './infrastructure/database/prisma-client';
 
-// Importar Repositórios
+// ============================================================================
+// IMPORTAR REPOSITÓRIOS
+// ============================================================================
 import {
   PrismaCategoryRepository,
   PrismaSupplierRepository,
   PrismaProductRepository,
   PrismaStockMovementRepository,
+  PrismaUserRepository,
+  PrismaClientRepository,
+  PrismaSaleRepository,
+  PrismaFinancialAccountRepository,
 } from './infrastructure/repositories';
 
-// Importar Use Cases de Category
+// ============================================================================
+// IMPORTAR USE CASES - CATEGORY
+// ============================================================================
 import {
   CreateCategoryUseCase,
   GetCategoryByIdUseCase,
@@ -21,7 +35,9 @@ import {
   DeleteCategoryUseCase,
 } from './application/use-cases/CategoryUseCases';
 
-// Importar Use Cases de Supplier
+// ============================================================================
+// IMPORTAR USE CASES - SUPPLIER
+// ============================================================================
 import {
   CreateSupplierUseCase,
   GetSupplierByIdUseCase,
@@ -30,7 +46,9 @@ import {
   DeleteSupplierUseCase,
 } from './application/use-cases/SupplierUseCases';
 
-// Importar Use Cases de Product
+// ============================================================================
+// IMPORTAR USE CASES - PRODUCT
+// ============================================================================
 import {
   CreateProductUseCase,
   GetProductByIdUseCase,
@@ -44,7 +62,9 @@ import {
   DeleteProductUseCase,
 } from './application/use-cases/ProductUseCases';
 
-// Importar Use Cases de StockMovement
+// ============================================================================
+// IMPORTAR USE CASES - STOCK MOVEMENT
+// ============================================================================
 import {
   CreateStockEntryUseCase,
   GetStockMovementByIdUseCase,
@@ -55,36 +75,129 @@ import {
   GetStockReportUseCase,
 } from './application/use-cases/StockMovementUseCases';
 
-// Importar Controllers
+// ============================================================================
+// IMPORTAR USE CASES - USER
+// ============================================================================
+import {
+  CreateUserUseCase,
+  AuthenticateUserUseCase,
+  GetUserByIdUseCase,
+  GetPaginatedUsersUseCase,
+  UpdateUserUseCase,
+  DeactivateUserUseCase,
+  ChangePasswordUseCase,
+} from './application/use-cases/UserUseCases';
+
+// ============================================================================
+// IMPORTAR USE CASES - CLIENT
+// ============================================================================
+import {
+  CreateClientUseCase,
+  GetClientByIdUseCase,
+  GetPaginatedClientsUseCase,
+  UpdateClientUseCase,
+  DeleteClientUseCase,
+  GetClientsWithDebtsUseCase,
+  GetTotalDebtsUseCase,
+} from './application/use-cases/ClientUseCases';
+
+// ============================================================================
+// IMPORTAR USE CASES - SALE
+// ============================================================================
+import {
+  CreateSaleUseCase,
+  GetSaleByIdUseCase,
+  GetPaginatedSalesUseCase,
+  CancelSaleUseCase,
+  GetTodaySalesUseCase,
+  GetSalesSummaryUseCase,
+  GetSalesByDateRangeUseCase,
+} from './application/use-cases/SaleUseCases';
+
+// ============================================================================
+// IMPORTAR USE CASES - FINANCIAL
+// ============================================================================
+import {
+  CreatePayableAccountUseCase,
+  CreateReceivableAccountUseCase,
+  GetAccountByIdUseCase,
+  GetPaginatedAccountsUseCase,
+  RegisterAccountPaymentUseCase,
+  CancelAccountUseCase,
+  GetOverdueAccountsUseCase,
+  GetFinancialSummaryUseCase,
+} from './application/use-cases/FinancialUseCases';
+
+// ============================================================================
+// IMPORTAR CONTROLLERS
+// ============================================================================
 import {
   CategoryController,
   SupplierController,
   ProductController,
   StockMovementController,
+  UserController,
+  ClientController,
+  SaleController,
+  FinancialController,
 } from './presentation/controllers';
 
-// Importar Routes
+// ============================================================================
+// IMPORTAR ROUTES
+// ============================================================================
 import {
   createCategoryRoutes,
   createSupplierRoutes,
   createProductRoutes,
   createStockMovementRoutes,
+  createUserRoutes,
+  createClientRoutes,
+  createSaleRoutes,
+  createFinancialRoutes,
 } from './presentation/routes';
 
+/**
+ * Cria e configura a aplicação Express.
+ * 
+ * @description Esta função implementa a injeção de dependências de todos os
+ * módulos da aplicação seguindo Clean Architecture:
+ * - Repositórios (Infrastructure Layer)
+ * - Use Cases (Application Layer)  
+ * - Controllers (Presentation Layer)
+ * - Routes (Presentation Layer)
+ * 
+ * @returns {Application} Instância configurada do Express
+ */
 export function createApp(): Application {
   const app = express();
 
-  // Middlewares
+  // ============================================================================
+  // MIDDLEWARES GLOBAIS
+  // ============================================================================
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // ============ INJEÇÃO DE DEPENDÊNCIAS ============
+  // ============================================================================
+  // INJEÇÃO DE DEPENDÊNCIAS - REPOSITÓRIOS
+  // ============================================================================
 
-  // Repositórios
+  // Repositórios de Estoque
   const categoryRepository = new PrismaCategoryRepository(prisma);
   const supplierRepository = new PrismaSupplierRepository(prisma);
   const productRepository = new PrismaProductRepository(prisma);
   const stockMovementRepository = new PrismaStockMovementRepository(prisma);
+
+  // Repositórios de Usuários e Clientes
+  const userRepository = new PrismaUserRepository(prisma);
+  const clientRepository = new PrismaClientRepository(prisma);
+
+  // Repositórios de Vendas e Financeiro
+  const saleRepository = new PrismaSaleRepository(prisma);
+  const financialAccountRepository = new PrismaFinancialAccountRepository(prisma);
+
+  // ============================================================================
+  // INJEÇÃO DE DEPENDÊNCIAS - USE CASES DE ESTOQUE
+  // ============================================================================
 
   // Use Cases de Category
   const createCategoryUseCase = new CreateCategoryUseCase(categoryRepository);
@@ -141,7 +254,60 @@ export function createApp(): Application {
     productRepository
   );
 
-  // Controllers
+  // ============================================================================
+  // INJEÇÃO DE DEPENDÊNCIAS - USE CASES DE USUÁRIOS
+  // ============================================================================
+
+  const createUserUseCase = new CreateUserUseCase(userRepository);
+  const authenticateUserUseCase = new AuthenticateUserUseCase(userRepository);
+  const getUserByIdUseCase = new GetUserByIdUseCase(userRepository);
+  const getPaginatedUsersUseCase = new GetPaginatedUsersUseCase(userRepository);
+  const updateUserUseCase = new UpdateUserUseCase(userRepository);
+  const deactivateUserUseCase = new DeactivateUserUseCase(userRepository);
+  const changePasswordUseCase = new ChangePasswordUseCase(userRepository);
+
+  // ============================================================================
+  // INJEÇÃO DE DEPENDÊNCIAS - USE CASES DE CLIENTES
+  // ============================================================================
+
+  const createClientUseCase = new CreateClientUseCase(clientRepository);
+  const getClientByIdUseCase = new GetClientByIdUseCase(clientRepository);
+  const getPaginatedClientsUseCase = new GetPaginatedClientsUseCase(clientRepository);
+  const updateClientUseCase = new UpdateClientUseCase(clientRepository);
+  const deleteClientUseCase = new DeleteClientUseCase(clientRepository);
+  const getClientsWithDebtsUseCase = new GetClientsWithDebtsUseCase(clientRepository);
+  const getTotalDebtsUseCase = new GetTotalDebtsUseCase(clientRepository);
+
+  // ============================================================================
+  // INJEÇÃO DE DEPENDÊNCIAS - USE CASES DE VENDAS
+  // ============================================================================
+
+  const createSaleUseCase = new CreateSaleUseCase(saleRepository, productRepository, clientRepository, stockMovementRepository);
+  const getSaleByIdUseCase = new GetSaleByIdUseCase(saleRepository);
+  const getPaginatedSalesUseCase = new GetPaginatedSalesUseCase(saleRepository);
+  const cancelSaleUseCase = new CancelSaleUseCase(saleRepository, productRepository, stockMovementRepository, clientRepository);
+  const getTodaySalesUseCase = new GetTodaySalesUseCase(saleRepository);
+  const getSalesSummaryUseCase = new GetSalesSummaryUseCase(saleRepository);
+  const getSalesByDateRangeUseCase = new GetSalesByDateRangeUseCase(saleRepository);
+
+  // ============================================================================
+  // INJEÇÃO DE DEPENDÊNCIAS - USE CASES FINANCEIROS
+  // ============================================================================
+
+  const createPayableUseCase = new CreatePayableAccountUseCase(financialAccountRepository);
+  const createReceivableUseCase = new CreateReceivableAccountUseCase(financialAccountRepository);
+  const getAccountByIdUseCase = new GetAccountByIdUseCase(financialAccountRepository);
+  const getPaginatedAccountsUseCase = new GetPaginatedAccountsUseCase(financialAccountRepository);
+  const registerPaymentUseCase = new RegisterAccountPaymentUseCase(financialAccountRepository);
+  const cancelAccountUseCase = new CancelAccountUseCase(financialAccountRepository);
+  const getOverdueAccountsUseCase = new GetOverdueAccountsUseCase(financialAccountRepository);
+  const getFinancialSummaryUseCase = new GetFinancialSummaryUseCase(financialAccountRepository);
+
+  // ============================================================================
+  // CONTROLLERS
+  // ============================================================================
+
+  // Controllers de Estoque
   const categoryController = new CategoryController(
     createCategoryUseCase,
     getCategoryByIdUseCase,
@@ -181,37 +347,118 @@ export function createApp(): Application {
     getStockReportUseCase
   );
 
-  // ============ ROTAS ============
+  // Controller de Usuários
+  const userController = new UserController(
+    createUserUseCase,
+    authenticateUserUseCase,
+    getUserByIdUseCase,
+    getPaginatedUsersUseCase,
+    updateUserUseCase,
+    deactivateUserUseCase,
+    changePasswordUseCase
+  );
+
+  // Controller de Clientes
+  const clientController = new ClientController(
+    createClientUseCase,
+    getClientByIdUseCase,
+    getPaginatedClientsUseCase,
+    updateClientUseCase,
+    deleteClientUseCase,
+    getClientsWithDebtsUseCase,
+    getTotalDebtsUseCase
+  );
+
+  // Controller de Vendas
+  const saleController = new SaleController(
+    createSaleUseCase,
+    getSaleByIdUseCase,
+    getPaginatedSalesUseCase,
+    cancelSaleUseCase,
+    getTodaySalesUseCase,
+    getSalesSummaryUseCase,
+    getSalesByDateRangeUseCase
+  );
+
+  // Controller Financeiro
+  const financialController = new FinancialController(
+    createPayableUseCase,
+    createReceivableUseCase,
+    getAccountByIdUseCase,
+    getPaginatedAccountsUseCase,
+    registerPaymentUseCase,
+    cancelAccountUseCase,
+    getOverdueAccountsUseCase,
+    getFinancialSummaryUseCase
+  );
+
+  // ============================================================================
+  // ROTAS
+  // ============================================================================
 
   // Rota de status/health check
   app.get('/', (req: Request, res: Response) => {
     res.json({
-      message: 'API de Estoque - Supermercado',
-      version: '1.0.0',
-      endpoints: {
-        categories: '/api/categories',
-        suppliers: '/api/suppliers',
-        products: '/api/products',
-        stockMovements: '/api/stock-movements',
+      message: 'API de Estoque - Sistema de Gestão para Supermercado',
+      version: '2.0.0',
+      description: 'API completa com Clean Architecture para controle mercantil',
+      modules: {
+        stock: {
+          categories: '/api/categories',
+          suppliers: '/api/suppliers',
+          products: '/api/products',
+          stockMovements: '/api/stock-movements',
+        },
+        users: {
+          users: '/api/users',
+        },
+        sales: {
+          clients: '/api/clients',
+          sales: '/api/sales',
+        },
+        financial: {
+          accounts: '/api/financial/accounts',
+          summary: '/api/financial/summary',
+        },
       },
     });
   });
 
-  // Registrar rotas
+  // Rotas de Estoque
   app.use('/api/categories', createCategoryRoutes(categoryController));
   app.use('/api/suppliers', createSupplierRoutes(supplierController));
   app.use('/api/products', createProductRoutes(productController));
   app.use('/api/stock-movements', createStockMovementRoutes(stockMovementController));
 
-  // Middleware de erro global
+  // Rotas de Usuários
+  app.use('/api/users', createUserRoutes(userController));
+
+  // Rotas de Clientes e Vendas
+  app.use('/api/clients', createClientRoutes(clientController));
+  app.use('/api/sales', createSaleRoutes(saleController));
+
+  // Rotas Financeiras
+  app.use('/api/financial', createFinancialRoutes(financialController));
+
+  // ============================================================================
+  // MIDDLEWARE DE ERRO GLOBAL
+  // ============================================================================
   app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    console.error(`[ERROR] ${new Date().toISOString()} - ${err.message}`);
     console.error(err.stack);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    });
   });
 
   // Rota 404
   app.use((req: Request, res: Response) => {
-    res.status(404).json({ error: 'Rota não encontrada' });
+    res.status(404).json({ 
+      error: 'Rota não encontrada',
+      path: req.path,
+      method: req.method,
+    });
   });
 
   return app;
