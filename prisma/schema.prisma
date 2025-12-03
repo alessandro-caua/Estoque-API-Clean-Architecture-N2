@@ -1,0 +1,76 @@
+// Prisma Schema para API de Estoque de Supermercado
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("Estoque")
+}
+
+// Categoria de produtos (ex: Bebidas, Laticínios, Carnes, etc.)
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@map("Categorias")
+}
+
+// Fornecedor dos produtos
+model Supplier {
+  id        String    @id @default(uuid())
+  name      String
+  email     String?   @unique
+  phone     String?
+  address   String?
+  cnpj      String?   @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@map("Fornecedores")
+}
+
+// Produto do estoque
+model Product {
+  id              String            @id @default(uuid())
+  name            String
+  description     String?
+  barcode         String?           @unique
+  price           Float
+  costPrice       Float
+  quantity        Int               @default(0)
+  minQuantity     Int               @default(10)
+  unit            String            @default("UN")
+  categoryId      String
+  supplierId      String?
+  isActive        Boolean           @default(true)
+  expirationDate  DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  category        Category          @relation(fields: [categoryId], references: [id])
+  supplier        Supplier?         @relation(fields: [supplierId], references: [id])
+  stockMovements  StockMovement[]
+
+  @@map("produtos")
+}
+
+// Movimentação de estoque (entrada/saída)
+model StockMovement {
+  id          String       @id @default(uuid())
+  productId   String
+  type        String       // ENTRY, EXIT, ADJUSTMENT, LOSS, RETURN
+  quantity    Int
+  reason      String?
+  unitPrice   Float?
+  totalPrice  Float?
+  createdAt   DateTime     @default(now())
+  product     Product      @relation(fields: [productId], references: [id])
+
+  @@map("MovimentacaoEstoque")
+}
