@@ -4,6 +4,12 @@
 // Casos de uso para operações com clientes.
 // Camada de Aplicação - Orquestra entidades e repositórios.
 // 
+// CONCEITO: Regras de Negócio para Clientes
+// =========================================
+// - Clientes podem ter limite de crédito para vendas fiado
+// - Clientes com débito não podem ser excluídos
+// - CPF e email devem ser únicos quando informados
+// 
 // Requisitos atendidos:
 // - RF10: Cadastro de clientes
 // - RF11: Registro de vendas fiadas
@@ -13,31 +19,18 @@
 import { Client } from '../../domain/entities/Client';
 import { IClientRepository, ClientFilters } from '../../domain/repositories/IClientRepository';
 
-// ==================== DTOs ====================
+// Importando DTOs da pasta centralizada
+import { CreateClientDTO, UpdateClientDTO } from '../dtos';
 
-/**
- * DTO para criação de cliente
- */
-export interface CreateClientDTO {
-  name: string;
-  cpf?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  creditLimit?: number;
-}
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  EntityAlreadyExistsError,
+  ClientHasDebtsError
+} from '../../domain/errors';
 
-/**
- * DTO para atualização de cliente
- */
-export interface UpdateClientDTO {
-  name?: string;
-  cpf?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  creditLimit?: number;
-}
+// Re-exportando DTOs para manter compatibilidade
+export { CreateClientDTO, UpdateClientDTO } from '../dtos';
 
 // ==================== USE CASES ====================
 
@@ -52,7 +45,7 @@ export class CreateClientUseCase {
     if (data.cpf) {
       const existingByCpf = await this.clientRepository.findByCpf(data.cpf);
       if (existingByCpf) {
-        throw new Error('Já existe um cliente com este CPF');
+        throw new EntityAlreadyExistsError('Cliente', 'CPF', data.cpf);
       }
     }
 
@@ -60,7 +53,7 @@ export class CreateClientUseCase {
     if (data.email) {
       const existingByEmail = await this.clientRepository.findByEmail(data.email);
       if (existingByEmail) {
-        throw new Error('Já existe um cliente com este email');
+        throw new EntityAlreadyExistsError('Cliente', 'email', data.email);
       }
     }
 
@@ -132,14 +125,14 @@ export class UpdateClientUseCase {
   async execute(id: string, data: UpdateClientDTO): Promise<Client> {
     const client = await this.clientRepository.findById(id);
     if (!client) {
-      throw new Error('Cliente não encontrado');
+      throw new EntityNotFoundError('Cliente', id);
     }
 
     // Verifica duplicidade de CPF
     if (data.cpf && data.cpf !== client.cpf) {
       const exists = await this.clientRepository.cpfExists(data.cpf, id);
       if (exists) {
-        throw new Error('Já existe um cliente com este CPF');
+        throw new EntityAlreadyExistsError('Cliente', 'CPF', data.cpf);
       }
     }
 
@@ -156,11 +149,11 @@ export class DeleteClientUseCase {
   async execute(id: string): Promise<void> {
     const client = await this.clientRepository.findById(id);
     if (!client) {
-      throw new Error('Cliente não encontrado');
+      throw new EntityNotFoundError('Cliente', id);
     }
 
     if (client.currentDebt > 0) {
-      throw new Error('Não é possível excluir cliente com débitos pendentes');
+      throw new ClientHasDebtsError(client.name, client.currentDebt);
     }
 
     return this.clientRepository.delete(id);

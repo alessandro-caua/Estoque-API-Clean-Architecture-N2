@@ -1,18 +1,44 @@
-// Use Cases de StockMovement - Camada de Aplicação
+// ============================================================================
+// USE CASES: STOCK MOVEMENT (MOVIMENTAÇÃO DE ESTOQUE)
+// ============================================================================
+// Casos de uso para operações de entrada/saída de estoque.
+// Camada de Aplicação - Orquestra entidades e repositórios.
+// 
+// CONCEITO: Tipos de Movimentação
+// ===============================
+// - ENTRY: Entrada de mercadoria (compra, devolução)
+// - EXIT: Saída de mercadoria (venda, perda)
+// - RETURN: Devolução de cliente
+// - LOSS: Perda, avaria, vencimento
+// - ADJUSTMENT: Ajuste de inventário
+// 
+// Requisitos atendidos:
+// - RF07: Baixa automática no estoque
+// - RF08: Histórico de movimentações
+// ============================================================================
+
 import { StockMovement, MovementType } from '../../domain/entities/StockMovement';
 import { IStockMovementRepository, StockMovementFilters } from '../../domain/repositories/IStockMovementRepository';
 import { IProductRepository } from '../../domain/repositories/IProductRepository';
 
-// DTOs
-export interface CreateStockMovementDTO {
-  productId: string;
-  type: MovementType;
-  quantity: number;
-  reason?: string;
-  unitPrice?: number;
-}
+// Importando DTOs da pasta centralizada
+import { CreateStockMovementDTO } from '../dtos';
 
-// Create Stock Movement Use Case (Entry)
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  InsufficientStockError 
+} from '../../domain/errors';
+
+// Re-exportando DTOs para manter compatibilidade
+export { CreateStockMovementDTO } from '../dtos';
+
+// ==================== USE CASES ====================
+
+/**
+ * Caso de Uso: Criar Movimentação de Estoque
+ * @description Registra entrada/saída e atualiza quantidade do produto
+ */
 export class CreateStockEntryUseCase {
   constructor(
     private stockMovementRepository: IStockMovementRepository,
@@ -22,7 +48,7 @@ export class CreateStockEntryUseCase {
   async execute(data: CreateStockMovementDTO): Promise<StockMovement> {
     const product = await this.productRepository.findById(data.productId);
     if (!product) {
-      throw new Error('Produto não encontrado');
+      throw new EntityNotFoundError('Produto', data.productId);
     }
 
     const totalPrice = data.unitPrice ? data.unitPrice * data.quantity : null;
@@ -43,7 +69,7 @@ export class CreateStockEntryUseCase {
       newQuantity = product.quantity + data.quantity;
     } else if (data.type === MovementType.EXIT || data.type === MovementType.LOSS) {
       if (product.quantity < data.quantity) {
-        throw new Error('Quantidade insuficiente em estoque');
+        throw new InsufficientStockError(product.name, product.quantity, data.quantity);
       }
       newQuantity = product.quantity - data.quantity;
     } else if (data.type === MovementType.ADJUSTMENT) {

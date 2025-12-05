@@ -4,6 +4,16 @@
 // Casos de uso para operações com vendas.
 // Camada de Aplicação - Orquestra entidades e repositórios.
 // 
+// CONCEITO: Transações de Negócio Complexas
+// =========================================
+// Uma venda envolve várias operações:
+// 1. Validar produtos e estoque
+// 2. Calcular totais e descontos
+// 3. Criar a venda
+// 4. Baixar estoque
+// 5. Registrar movimentações
+// 6. Atualizar débito do cliente (se fiado)
+// 
 // Requisitos atendidos:
 // - RF06: Registro de vendas
 // - RF07: Baixa automática no estoque
@@ -19,28 +29,19 @@ import { IProductRepository } from '../../domain/repositories/IProductRepository
 import { IClientRepository } from '../../domain/repositories/IClientRepository';
 import { IStockMovementRepository } from '../../domain/repositories/IStockMovementRepository';
 
-// ==================== DTOs ====================
+// Importando DTOs da pasta centralizada
+import { CreateSaleDTO, SaleItemDTO } from '../dtos';
 
-/**
- * DTO para item da venda
- */
-export interface SaleItemDTO {
-  productId: string;
-  quantity: number;
-  discount?: number;
-}
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  InvalidEntityStateError,
+  InsufficientStockError,
+  InactiveProductError
+} from '../../domain/errors';
 
-/**
- * DTO para criação de venda
- */
-export interface CreateSaleDTO {
-  clientId?: string;
-  userId: string;
-  items: SaleItemDTO[];
-  discount?: number;
-  paymentMethod: PaymentMethod;
-  notes?: string;
-}
+// Re-exportando DTOs para manter compatibilidade
+export { CreateSaleDTO, SaleItemDTO } from '../dtos';
 
 // ==================== USE CASES ====================
 
@@ -60,7 +61,7 @@ export class CreateSaleUseCase {
     if (data.clientId) {
       const client = await this.clientRepository.findById(data.clientId);
       if (!client) {
-        throw new Error('Cliente não encontrado');
+        throw new EntityNotFoundError('Cliente', data.clientId);
       }
     }
 
@@ -71,13 +72,13 @@ export class CreateSaleUseCase {
     for (const itemData of data.items) {
       const product = await this.productRepository.findById(itemData.productId);
       if (!product) {
-        throw new Error(`Produto não encontrado: ${itemData.productId}`);
+        throw new EntityNotFoundError('Produto', itemData.productId);
       }
       if (!product.isActive) {
-        throw new Error(`Produto inativo: ${product.name}`);
+        throw new InactiveProductError(product.name);
       }
       if (product.quantity < itemData.quantity) {
-        throw new Error(`Estoque insuficiente para ${product.name}. Disponível: ${product.quantity}`);
+        throw new InsufficientStockError(product.name, product.quantity, itemData.quantity);
       }
 
       const itemTotal = (product.salePrice * itemData.quantity) - (itemData.discount ?? 0);
@@ -186,11 +187,11 @@ export class CancelSaleUseCase {
   async execute(saleId: string): Promise<Sale> {
     const sale = await this.saleRepository.findById(saleId);
     if (!sale) {
-      throw new Error('Venda não encontrada');
+      throw new EntityNotFoundError('Venda', saleId);
     }
 
     if (sale.paymentStatus === PaymentStatus.CANCELLED) {
-      throw new Error('Venda já foi cancelada');
+      throw new InvalidEntityStateError('Venda', 'cancelar', 'já está cancelada');
     }
 
     // Estornar estoque

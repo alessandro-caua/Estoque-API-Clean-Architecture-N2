@@ -4,6 +4,17 @@
 // Casos de uso para operações financeiras.
 // Camada de Aplicação - Orquestra entidades e repositórios.
 // 
+// CONCEITO: Contas a Pagar vs Contas a Receber
+// ============================================
+// - PAYABLE (A Pagar): Dinheiro que SAI (compras, despesas)
+// - RECEIVABLE (A Receber): Dinheiro que ENTRA (vendas, fiado)
+// 
+// Estados possíveis:
+// - PENDING: Aguardando pagamento
+// - PAID: Paga/Recebida
+// - OVERDUE: Vencida
+// - CANCELLED: Cancelada
+// 
 // Requisitos atendidos:
 // - RF15: Registro de contas a pagar
 // - RF16: Registro de contas a receber
@@ -22,37 +33,19 @@ import {
   FinancialSummary 
 } from '../../domain/repositories/IFinancialAccountRepository';
 
-// ==================== DTOs (Data Transfer Objects) ====================
+// Importando DTOs da pasta centralizada
+import { CreateFinancialAccountDTO, RegisterPaymentDTO } from '../dtos';
 
-/**
- * DTO para criação de conta financeira
- */
-export interface CreateFinancialAccountDTO {
-  /** Categoria da conta */
-  category: AccountCategory;
-  /** Descrição */
-  description: string;
-  /** Valor da conta */
-  amount: number;
-  /** Data de vencimento */
-  dueDate: Date;
-  /** Referência (ID da venda, pedido, etc.) */
-  referenceId?: string;
-  /** Observações */
-  notes?: string;
-}
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  InvalidEntityStateError 
+} from '../../domain/errors';
 
-/**
- * DTO para registro de pagamento
- */
-export interface RegisterAccountPaymentDTO {
-  /** ID da conta */
-  accountId: string;
-  /** Data do pagamento */
-  paidAt?: Date;
-}
+// Re-exportando DTOs para manter compatibilidade
+export { CreateFinancialAccountDTO, RegisterPaymentDTO as RegisterAccountPaymentDTO } from '../dtos';
 
-// ==================== USE CASES - CONTAS FINANCEIRAS ====================
+// ==================== USE CASES ====================
 
 /**
  * Caso de Uso: Criar Conta a Pagar (RF15)
@@ -138,18 +131,18 @@ export class GetDueSoonAccountsUseCase {
 export class RegisterAccountPaymentUseCase {
   constructor(private financialAccountRepository: IFinancialAccountRepository) {}
 
-  async execute(data: RegisterAccountPaymentDTO): Promise<FinancialAccount> {
+  async execute(data: RegisterPaymentDTO): Promise<FinancialAccount> {
     const account = await this.financialAccountRepository.findById(data.accountId);
     if (!account) {
-      throw new Error('Conta não encontrada');
+      throw new EntityNotFoundError('Conta', data.accountId);
     }
 
     if (account.status === AccountStatus.PAID) {
-      throw new Error('Esta conta já foi paga');
+      throw new InvalidEntityStateError('Conta', 'pagar', 'já foi paga');
     }
 
     if (account.status === AccountStatus.CANCELLED) {
-      throw new Error('Esta conta foi cancelada');
+      throw new InvalidEntityStateError('Conta', 'pagar', 'foi cancelada');
     }
 
     // Registra o pagamento
@@ -169,11 +162,11 @@ export class CancelAccountUseCase {
   async execute(id: string): Promise<FinancialAccount> {
     const account = await this.financialAccountRepository.findById(id);
     if (!account) {
-      throw new Error('Conta não encontrada');
+      throw new EntityNotFoundError('Conta', id);
     }
 
     if (account.status === AccountStatus.PAID) {
-      throw new Error('Conta já paga não pode ser cancelada');
+      throw new InvalidEntityStateError('Conta', 'cancelar', 'já foi paga');
     }
 
     return this.financialAccountRepository.cancel(id);

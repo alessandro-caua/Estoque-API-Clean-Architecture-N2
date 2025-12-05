@@ -4,6 +4,13 @@
 // Casos de uso para operações com usuários e autenticação.
 // Camada de Aplicação - Orquestra entidades e repositórios.
 // 
+// CONCEITO: Autenticação e Autorização
+// ====================================
+// - Autenticação: Verificar se o usuário É quem diz ser (login)
+// - Autorização: Verificar se o usuário PODE fazer algo (permissões)
+// 
+// NOTA: Em produção, senhas devem ser criptografadas com bcrypt!
+// 
 // Requisitos atendidos:
 // - RF20: Cadastro de usuários
 // - RF21: Controle de acesso por perfis
@@ -13,43 +20,20 @@
 import { User, UserRole } from '../../domain/entities/User';
 import { IUserRepository, UserFilters } from '../../domain/repositories/IUserRepository';
 
-// ==================== DTOs (Data Transfer Objects) ====================
+// Importando DTOs da pasta centralizada
+import { CreateUserDTO, UpdateUserDTO, LoginDTO, ChangePasswordDTO } from '../dtos';
 
-/**
- * DTO para criação de usuário
- */
-export interface CreateUserDTO {
-  name: string;
-  email: string;
-  password: string;
-  role?: UserRole;
-}
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  EntityAlreadyExistsError,
+  InvalidCredentialsError,
+  UserDeactivatedError,
+  ValidationError
+} from '../../domain/errors';
 
-/**
- * DTO para atualização de usuário
- */
-export interface UpdateUserDTO {
-  name?: string;
-  email?: string;
-  role?: UserRole;
-}
-
-/**
- * DTO para login
- */
-export interface LoginDTO {
-  email: string;
-  password: string;
-}
-
-/**
- * DTO para alteração de senha
- */
-export interface ChangePasswordDTO {
-  userId: string;
-  currentPassword: string;
-  newPassword: string;
-}
+// Re-exportando DTOs para manter compatibilidade
+export { CreateUserDTO, UpdateUserDTO, LoginDTO, ChangePasswordDTO } from '../dtos';
 
 // ==================== USE CASES ====================
 
@@ -63,12 +47,15 @@ export class CreateUserUseCase {
     // Verifica duplicidade de email
     const existingUser = await this.userRepository.findByEmail(data.email);
     if (existingUser) {
-      throw new Error('Já existe um usuário com este email');
+      throw new EntityAlreadyExistsError('Usuário', 'email', data.email);
     }
 
     // Valida senha mínima
     if (data.password.length < 6) {
-      throw new Error('A senha deve ter pelo menos 6 caracteres');
+      throw new ValidationError([{
+        field: 'password',
+        message: 'A senha deve ter pelo menos 6 caracteres'
+      }]);
     }
 
     // Cria a entidade
@@ -94,17 +81,17 @@ export class AuthenticateUserUseCase {
     // Busca usuário pelo email
     const user = await this.userRepository.findByEmail(data.email);
     if (!user) {
-      throw new Error('Email ou senha inválidos');
+      throw new InvalidCredentialsError();
     }
 
     // Verifica se está ativo
     if (!user.isActive) {
-      throw new Error('Usuário desativado. Entre em contato com o administrador.');
+      throw new UserDeactivatedError();
     }
 
     // Verifica senha (comparação simples - em produção usar bcrypt)
     if (user.password !== data.password) {
-      throw new Error('Email ou senha inválidos');
+      throw new InvalidCredentialsError();
     }
 
     return user;
@@ -142,14 +129,14 @@ export class UpdateUserUseCase {
   async execute(id: string, data: UpdateUserDTO): Promise<User> {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new Error('Usuário não encontrado');
+      throw new EntityNotFoundError('Usuário', id);
     }
 
     // Verifica duplicidade de email
     if (data.email && data.email !== user.email) {
       const exists = await this.userRepository.emailExists(data.email, id);
       if (exists) {
-        throw new Error('Já existe um usuário com este email');
+        throw new EntityAlreadyExistsError('Usuário', 'email', data.email);
       }
     }
 
@@ -166,17 +153,20 @@ export class ChangePasswordUseCase {
   async execute(data: ChangePasswordDTO): Promise<void> {
     const user = await this.userRepository.findById(data.userId);
     if (!user) {
-      throw new Error('Usuário não encontrado');
+      throw new EntityNotFoundError('Usuário', data.userId);
     }
 
     // Verifica senha atual (comparação simples - em produção usar bcrypt)
     if (user.password !== data.currentPassword) {
-      throw new Error('Senha atual incorreta');
+      throw new InvalidCredentialsError();
     }
 
     // Valida nova senha
     if (data.newPassword.length < 6) {
-      throw new Error('A nova senha deve ter pelo menos 6 caracteres');
+      throw new ValidationError([{
+        field: 'newPassword',
+        message: 'A nova senha deve ter pelo menos 6 caracteres'
+      }]);
     }
 
     await this.userRepository.update(data.userId, { password: data.newPassword } as Partial<User>);
@@ -192,7 +182,7 @@ export class DeactivateUserUseCase {
   async execute(id: string): Promise<void> {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new Error('Usuário não encontrado');
+      throw new EntityNotFoundError('Usuário', id);
     }
 
     await this.userRepository.delete(id);

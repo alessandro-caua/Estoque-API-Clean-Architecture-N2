@@ -1,40 +1,57 @@
-// Use Cases de Supplier - Camada de Aplicação
+// ============================================================================
+// USE CASES: SUPPLIER (FORNECEDOR)
+// ============================================================================
+// Casos de uso para operações com fornecedores.
+// Camada de Aplicação - Orquestra entidades e repositórios.
+// 
+// CONCEITO: Validação de Unicidade
+// ================================
+// Antes de criar/atualizar, verificamos se campos únicos (email, CNPJ)
+// já existem no banco. Isso evita duplicatas e garante integridade.
+// 
+// Requisitos atendidos:
+// - RF03: Cadastro de fornecedores
+// - RF04: Gestão de dados de contato
+// ============================================================================
+
 import { Supplier } from '../../domain/entities/Supplier';
 import { ISupplierRepository } from '../../domain/repositories/ISupplierRepository';
 
-// DTOs
-export interface CreateSupplierDTO {
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  cnpj?: string;
-}
+// Importando DTOs da pasta centralizada
+import { CreateSupplierDTO, UpdateSupplierDTO } from '../dtos';
 
-export interface UpdateSupplierDTO {
-  name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  cnpj?: string;
-}
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  EntityAlreadyExistsError 
+} from '../../domain/errors';
 
-// Create Supplier Use Case
+// Re-exportando DTOs para manter compatibilidade
+export { CreateSupplierDTO, UpdateSupplierDTO } from '../dtos';
+
+// ==================== USE CASES ====================
+
+/**
+ * Caso de Uso: Criar Fornecedor
+ * @description Cria um novo fornecedor validando unicidade de email e CNPJ
+ */
 export class CreateSupplierUseCase {
   constructor(private supplierRepository: ISupplierRepository) {}
 
   async execute(data: CreateSupplierDTO): Promise<Supplier> {
+    // Verifica duplicidade de email
     if (data.email) {
       const existingByEmail = await this.supplierRepository.findByEmail(data.email);
       if (existingByEmail) {
-        throw new Error('Já existe um fornecedor com este email');
+        throw new EntityAlreadyExistsError('Fornecedor', 'email', data.email);
       }
     }
 
+    // Verifica duplicidade de CNPJ
     if (data.cnpj) {
       const existingByCnpj = await this.supplierRepository.findByCnpj(data.cnpj);
       if (existingByCnpj) {
-        throw new Error('Já existe um fornecedor com este CNPJ');
+        throw new EntityAlreadyExistsError('Fornecedor', 'CNPJ', data.cnpj);
       }
     }
 
@@ -50,7 +67,10 @@ export class CreateSupplierUseCase {
   }
 }
 
-// Get Supplier By Id Use Case
+/**
+ * Caso de Uso: Buscar Fornecedor por ID
+ * @description Busca um fornecedor específico pelo identificador
+ */
 export class GetSupplierByIdUseCase {
   constructor(private supplierRepository: ISupplierRepository) {}
 
@@ -59,7 +79,10 @@ export class GetSupplierByIdUseCase {
   }
 }
 
-// Get All Suppliers Use Case
+/**
+ * Caso de Uso: Listar Todos os Fornecedores
+ * @description Retorna todos os fornecedores cadastrados
+ */
 export class GetAllSuppliersUseCase {
   constructor(private supplierRepository: ISupplierRepository) {}
 
@@ -68,27 +91,32 @@ export class GetAllSuppliersUseCase {
   }
 }
 
-// Update Supplier Use Case
+/**
+ * Caso de Uso: Atualizar Fornecedor
+ * @description Atualiza os dados de um fornecedor existente
+ */
 export class UpdateSupplierUseCase {
   constructor(private supplierRepository: ISupplierRepository) {}
 
   async execute(id: string, data: UpdateSupplierDTO): Promise<Supplier> {
     const existingSupplier = await this.supplierRepository.findById(id);
     if (!existingSupplier) {
-      throw new Error('Fornecedor não encontrado');
+      throw new EntityNotFoundError('Fornecedor', id);
     }
 
+    // Verifica duplicidade de email
     if (data.email) {
       const supplierWithSameEmail = await this.supplierRepository.findByEmail(data.email);
       if (supplierWithSameEmail && supplierWithSameEmail.id !== id) {
-        throw new Error('Já existe um fornecedor com este email');
+        throw new EntityAlreadyExistsError('Fornecedor', 'email', data.email);
       }
     }
 
+    // Verifica duplicidade de CNPJ
     if (data.cnpj) {
       const supplierWithSameCnpj = await this.supplierRepository.findByCnpj(data.cnpj);
       if (supplierWithSameCnpj && supplierWithSameCnpj.id !== id) {
-        throw new Error('Já existe um fornecedor com este CNPJ');
+        throw new EntityAlreadyExistsError('Fornecedor', 'CNPJ', data.cnpj);
       }
     }
 
@@ -96,14 +124,17 @@ export class UpdateSupplierUseCase {
   }
 }
 
-// Delete Supplier Use Case
+/**
+ * Caso de Uso: Excluir Fornecedor
+ * @description Remove um fornecedor do sistema
+ */
 export class DeleteSupplierUseCase {
   constructor(private supplierRepository: ISupplierRepository) {}
 
   async execute(id: string): Promise<void> {
     const existingSupplier = await this.supplierRepository.findById(id);
     if (!existingSupplier) {
-      throw new Error('Fornecedor não encontrado');
+      throw new EntityNotFoundError('Fornecedor', id);
     }
 
     return this.supplierRepository.delete(id);

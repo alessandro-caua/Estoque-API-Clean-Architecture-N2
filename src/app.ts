@@ -443,23 +443,19 @@ export function createApp(): Application {
   // ============================================================================
   // MIDDLEWARE DE ERRO GLOBAL
   // ============================================================================
-  app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    console.error(`[ERROR] ${new Date().toISOString()} - ${err.message}`);
-    console.error(err.stack);
-    res.status(500).json({ 
-      error: 'Erro interno do servidor',
-      message: process.env.NODE_ENV === 'development' ? err.message : undefined,
-    });
-  });
-
-  // Rota 404
-  app.use((req: Request, res: Response) => {
-    res.status(404).json({ 
-      error: 'Rota não encontrada',
-      path: req.path,
-      method: req.method,
-    });
-  });
+  // Importamos os middlewares centralizados para tratamento de erros.
+  // O notFoundHandler trata rotas que não existem (404).
+  // O errorHandler trata todos os erros lançados pela aplicação.
+  // ============================================================================
+  
+  // Importar middlewares de erro
+  const { errorHandler, notFoundHandler } = require('./presentation/middlewares');
+  
+  // Middleware para rotas não encontradas (deve vir antes do errorHandler)
+  app.use(notFoundHandler);
+  
+  // Middleware de tratamento de erros (deve ser o último)
+  app.use(errorHandler);
 
   return app;
 }

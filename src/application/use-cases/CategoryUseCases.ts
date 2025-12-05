@@ -4,6 +4,13 @@
 // Casos de uso para operações com categorias de produtos.
 // Camada de Aplicação - Orquestra entidades e repositórios.
 // 
+// CONCEITO: Use Case (Caso de Uso)
+// ================================
+// Um Use Case representa uma ação que o usuário pode fazer no sistema.
+// Ele orquestra entidades e repositórios para executar a lógica de negócio.
+// 
+// REGRA: Um Use Case deve fazer apenas UMA coisa (Single Responsibility)
+// 
 // Requisitos atendidos:
 // - RF01: Cadastro de produtos (categorização)
 // - RF02: Organização e classificação de produtos
@@ -12,37 +19,17 @@
 import { Category } from '../../domain/entities/Category';
 import { ICategoryRepository } from '../../domain/repositories/ICategoryRepository';
 
-// ==================== DTOs (Data Transfer Objects) ====================
+// Importando DTOs da pasta centralizada
+import { CreateCategoryDTO, UpdateCategoryDTO } from '../dtos';
 
-/**
- * DTO para criação de categoria
- */
-export interface CreateCategoryDTO {
-  /** Nome da categoria (obrigatório) */
-  name: string;
-  /** Descrição da categoria (opcional) */
-  description?: string;
-}
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  EntityAlreadyExistsError 
+} from '../../domain/errors';
 
-/**
- * DTO para atualização de categoria
- */
-export interface UpdateCategoryDTO {
-  /** Novo nome (opcional) */
-  name?: string;
-  /** Nova descrição (opcional) */
-  description?: string;
-}
-
-/**
- * DTO para listagem paginada
- */
-export interface PaginatedCategoriesDTO {
-  /** Número da página */
-  page?: number;
-  /** Itens por página */
-  limit?: number;
-}
+// Re-exportando DTOs para manter compatibilidade com imports existentes
+export { CreateCategoryDTO, UpdateCategoryDTO } from '../dtos';
 
 // ==================== USE CASES ====================
 
@@ -65,13 +52,13 @@ export class CreateCategoryUseCase {
    * Executa a criação da categoria
    * @param data - Dados da categoria a criar
    * @returns Promise com a categoria criada
-   * @throws Error se já existir categoria com mesmo nome
+   * @throws EntityAlreadyExistsError se já existir categoria com mesmo nome
    */
   async execute(data: CreateCategoryDTO): Promise<Category> {
     // Verifica se já existe categoria com este nome
     const existingCategory = await this.categoryRepository.findByName(data.name);
     if (existingCategory) {
-      throw new Error('Já existe uma categoria com este nome');
+      throw new EntityAlreadyExistsError('Categoria', 'nome', data.name);
     }
 
     // Cria a entidade (validação automática no construtor)
@@ -130,20 +117,21 @@ export class UpdateCategoryUseCase {
    * @param id - ID da categoria a atualizar
    * @param data - Novos dados
    * @returns Promise com a categoria atualizada
-   * @throws Error se categoria não encontrada ou nome duplicado
+   * @throws EntityNotFoundError se categoria não encontrada
+   * @throws EntityAlreadyExistsError se nome duplicado
    */
   async execute(id: string, data: UpdateCategoryDTO): Promise<Category> {
     // Verifica se a categoria existe
     const existingCategory = await this.categoryRepository.findById(id);
     if (!existingCategory) {
-      throw new Error('Categoria não encontrada');
+      throw new EntityNotFoundError('Categoria', id);
     }
 
     // Se está alterando o nome, verifica duplicidade
     if (data.name && data.name !== existingCategory.name) {
       const categoryWithSameName = await this.categoryRepository.findByName(data.name);
       if (categoryWithSameName && categoryWithSameName.id !== id) {
-        throw new Error('Já existe uma categoria com este nome');
+        throw new EntityAlreadyExistsError('Categoria', 'nome', data.name);
       }
     }
 
@@ -161,12 +149,12 @@ export class DeleteCategoryUseCase {
   /**
    * Executa a exclusão
    * @param id - ID da categoria a excluir
-   * @throws Error se categoria não encontrada
+   * @throws EntityNotFoundError se categoria não encontrada
    */
   async execute(id: string): Promise<void> {
     const existingCategory = await this.categoryRepository.findById(id);
     if (!existingCategory) {
-      throw new Error('Categoria não encontrada');
+      throw new EntityNotFoundError('Categoria', id);
     }
 
     return this.categoryRepository.delete(id);

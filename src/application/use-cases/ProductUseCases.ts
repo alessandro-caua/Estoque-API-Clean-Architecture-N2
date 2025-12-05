@@ -1,41 +1,43 @@
-// Use Cases de Product - Camada de Aplicação
+// ============================================================================
+// USE CASES: PRODUCT (PRODUTO)
+// ============================================================================
+// Casos de uso para operações com produtos.
+// Camada de Aplicação - Orquestra entidades e repositórios.
+// 
+// CONCEITO: Dependências entre Entidades
+// ======================================
+// Produto depende de Categoria (obrigatório) e Fornecedor (opcional).
+// Os Use Cases validam essas dependências antes de criar/atualizar.
+// 
+// Requisitos atendidos:
+// - RF01: Cadastro de produtos
+// - RF05: Controle de estoque mínimo
+// - RF13: Controle de validade
+// ============================================================================
+
 import { Product } from '../../domain/entities/Product';
 import { IProductRepository, ProductFilters } from '../../domain/repositories/IProductRepository';
 import { ICategoryRepository } from '../../domain/repositories/ICategoryRepository';
 import { ISupplierRepository } from '../../domain/repositories/ISupplierRepository';
 
-// DTOs
-export interface CreateProductDTO {
-  name: string;
-  description?: string;
-  barcode?: string;
-  salePrice: number;
-  costPrice: number;
-  quantity?: number;
-  minQuantity?: number;
-  unit?: string;
-  categoryId: string;
-  supplierId?: string;
-  isActive?: boolean;
-  expirationDate?: Date;
-}
+// Importando DTOs da pasta centralizada
+import { CreateProductDTO, UpdateProductDTO } from '../dtos';
 
-export interface UpdateProductDTO {
-  name?: string;
-  description?: string;
-  barcode?: string;
-  salePrice?: number;
-  costPrice?: number;
-  quantity?: number;
-  minQuantity?: number;
-  unit?: string;
-  categoryId?: string;
-  supplierId?: string;
-  isActive?: boolean;
-  expirationDate?: Date;
-}
+// Importando erros de domínio específicos
+import { 
+  EntityNotFoundError, 
+  EntityAlreadyExistsError 
+} from '../../domain/errors';
 
-// Create Product Use Case
+// Re-exportando DTOs para manter compatibilidade
+export { CreateProductDTO, UpdateProductDTO } from '../dtos';
+
+// ==================== USE CASES ====================
+
+/**
+ * Caso de Uso: Criar Produto
+ * @description Cria um novo produto validando categoria, fornecedor e código de barras
+ */
 export class CreateProductUseCase {
   constructor(
     private productRepository: IProductRepository,
@@ -47,14 +49,14 @@ export class CreateProductUseCase {
     // Verificar se categoria existe
     const category = await this.categoryRepository.findById(data.categoryId);
     if (!category) {
-      throw new Error('Categoria não encontrada');
+      throw new EntityNotFoundError('Categoria', data.categoryId);
     }
 
     // Verificar se fornecedor existe (se fornecido)
     if (data.supplierId) {
       const supplier = await this.supplierRepository.findById(data.supplierId);
       if (!supplier) {
-        throw new Error('Fornecedor não encontrado');
+        throw new EntityNotFoundError('Fornecedor', data.supplierId);
       }
     }
 
@@ -62,7 +64,7 @@ export class CreateProductUseCase {
     if (data.barcode) {
       const existingByBarcode = await this.productRepository.findByBarcode(data.barcode);
       if (existingByBarcode) {
-        throw new Error('Já existe um produto com este código de barras');
+        throw new EntityAlreadyExistsError('Produto', 'código de barras', data.barcode);
       }
     }
 
@@ -85,7 +87,9 @@ export class CreateProductUseCase {
   }
 }
 
-// Get Product By Id Use Case
+/**
+ * Caso de Uso: Buscar Produto por ID
+ */
 export class GetProductByIdUseCase {
   constructor(private productRepository: IProductRepository) {}
 
@@ -94,7 +98,9 @@ export class GetProductByIdUseCase {
   }
 }
 
-// Get Product By Barcode Use Case
+/**
+ * Caso de Uso: Buscar Produto por Código de Barras
+ */
 export class GetProductByBarcodeUseCase {
   constructor(private productRepository: IProductRepository) {}
 
@@ -103,7 +109,9 @@ export class GetProductByBarcodeUseCase {
   }
 }
 
-// Get All Products Use Case
+/**
+ * Caso de Uso: Listar Produtos com Filtros
+ */
 export class GetAllProductsUseCase {
   constructor(private productRepository: IProductRepository) {}
 
@@ -112,7 +120,10 @@ export class GetAllProductsUseCase {
   }
 }
 
-// Get Low Stock Products Use Case
+/**
+ * Caso de Uso: Produtos com Estoque Baixo (RF05)
+ * @description Retorna produtos com quantidade abaixo do mínimo
+ */
 export class GetLowStockProductsUseCase {
   constructor(private productRepository: IProductRepository) {}
 
@@ -121,7 +132,10 @@ export class GetLowStockProductsUseCase {
   }
 }
 
-// Get Expired Products Use Case
+/**
+ * Caso de Uso: Produtos Vencidos (RF13)
+ * @description Retorna produtos com data de validade expirada
+ */
 export class GetExpiredProductsUseCase {
   constructor(private productRepository: IProductRepository) {}
 
@@ -130,7 +144,9 @@ export class GetExpiredProductsUseCase {
   }
 }
 
-// Get Products By Category Use Case
+/**
+ * Caso de Uso: Produtos por Categoria
+ */
 export class GetProductsByCategoryUseCase {
   constructor(private productRepository: IProductRepository) {}
 
@@ -139,7 +155,9 @@ export class GetProductsByCategoryUseCase {
   }
 }
 
-// Get Products By Supplier Use Case
+/**
+ * Caso de Uso: Produtos por Fornecedor
+ */
 export class GetProductsBySupplierUseCase {
   constructor(private productRepository: IProductRepository) {}
 
@@ -148,7 +166,9 @@ export class GetProductsBySupplierUseCase {
   }
 }
 
-// Update Product Use Case
+/**
+ * Caso de Uso: Atualizar Produto
+ */
 export class UpdateProductUseCase {
   constructor(
     private productRepository: IProductRepository,
@@ -159,14 +179,14 @@ export class UpdateProductUseCase {
   async execute(id: string, data: UpdateProductDTO): Promise<Product> {
     const existingProduct = await this.productRepository.findById(id);
     if (!existingProduct) {
-      throw new Error('Produto não encontrado');
+      throw new EntityNotFoundError('Produto', id);
     }
 
     // Verificar se categoria existe (se fornecida)
     if (data.categoryId) {
       const category = await this.categoryRepository.findById(data.categoryId);
       if (!category) {
-        throw new Error('Categoria não encontrada');
+        throw new EntityNotFoundError('Categoria', data.categoryId);
       }
     }
 
@@ -174,7 +194,7 @@ export class UpdateProductUseCase {
     if (data.supplierId) {
       const supplier = await this.supplierRepository.findById(data.supplierId);
       if (!supplier) {
-        throw new Error('Fornecedor não encontrado');
+        throw new EntityNotFoundError('Fornecedor', data.supplierId);
       }
     }
 
@@ -182,7 +202,7 @@ export class UpdateProductUseCase {
     if (data.barcode) {
       const productWithSameBarcode = await this.productRepository.findByBarcode(data.barcode);
       if (productWithSameBarcode && productWithSameBarcode.id !== id) {
-        throw new Error('Já existe um produto com este código de barras');
+        throw new EntityAlreadyExistsError('Produto', 'código de barras', data.barcode);
       }
     }
 
@@ -190,14 +210,16 @@ export class UpdateProductUseCase {
   }
 }
 
-// Delete Product Use Case
+/**
+ * Caso de Uso: Excluir Produto
+ */
 export class DeleteProductUseCase {
   constructor(private productRepository: IProductRepository) {}
 
   async execute(id: string): Promise<void> {
     const existingProduct = await this.productRepository.findById(id);
     if (!existingProduct) {
-      throw new Error('Produto não encontrado');
+      throw new EntityNotFoundError('Produto', id);
     }
 
     return this.productRepository.delete(id);

@@ -58,8 +58,14 @@ export class DomainError extends Error {
     this.timestamp = new Date();
 
     // Mantém o stack trace correto no V8 (Node.js)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
+    // Usamos type assertion porque captureStackTrace é específico do V8
+    // e não está definido em todos os ambientes JavaScript
+    const ErrorConstructor = Error as typeof Error & {
+      captureStackTrace?: (target: Error, constructor: Function) => void;
+    };
+    
+    if (ErrorConstructor.captureStackTrace) {
+      ErrorConstructor.captureStackTrace(this, this.constructor);
     }
   }
 
