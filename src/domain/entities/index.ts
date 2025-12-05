@@ -1,13 +1,43 @@
 // ============================================================================
-// ARQUIVO DE EXPORTAÇÃO: ENTIDADES DO DOMÍNIO
+// ÍNDICE DE ENTIDADES DO DOMÍNIO
 // ============================================================================
-// Este arquivo centraliza todas as exportações das entidades do domínio.
-// Facilita a importação em outros módulos do sistema.
 // 
-// Estrutura do Domínio (Clean Architecture):
-// - Entidades: Objetos de negócio com regras e validações
-// - Enums: Tipos enumerados para status e categorias
-// - Props: Interfaces para criação de entidades
+// CONCEITO: O QUE SÃO ENTIDADES?
+// ==============================
+// 
+// Na Clean Architecture, Entidades são a camada mais central.
+// São os "objetos de negócio" que representam conceitos do mundo real.
+// 
+// CARACTERÍSTICAS DAS ENTIDADES:
+// 
+// 1. INDEPENDENTES DE TECNOLOGIA
+//    - Não conhecem banco de dados, HTTP, frameworks
+//    - Funcionariam igual em qualquer contexto
+// 
+// 2. CONTÊM REGRAS DE NEGÓCIO
+//    - Validações (preço não pode ser negativo)
+//    - Cálculos (margem de lucro = venda - custo)
+//    - Estados (produto ativo/inativo)
+// 
+// 3. MENOS PROPENSAS A MUDAR
+//    - A tecnologia muda (Angular → React → Vue)
+//    - O negócio permanece (produto sempre terá preço)
+// 
+// ANALOGIA:
+// ---------
+// Pense em uma loja física (sem computador):
+// - Produtos existem (com preço, nome, quantidade)
+// - Clientes existem (com nome, débito, limite)
+// - Vendas acontecem (itens, total, pagamento)
+// 
+// Essas são as entidades! Existiriam mesmo sem sistema.
+// O software apenas automatiza e registra o que já existe.
+// 
+// PADRÃO: Cada entidade tem:
+// - Classe: A entidade em si (Product, Sale, Client)
+// - Props: Interface com dados de criação (ProductProps)
+// - Enums: Valores fixos relacionados (PaymentMethod, UserRole)
+// 
 // ============================================================================
 
 // ==================== ENTIDADES BASE ====================
