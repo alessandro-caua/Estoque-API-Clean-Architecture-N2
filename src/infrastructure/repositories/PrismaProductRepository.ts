@@ -1,12 +1,13 @@
-// Repositório de Product com Prisma - Camada de Infraestrutura
-import { PrismaClient, Prisma } from '@prisma/client';
+// Repositório de Product com DAO - Camada de Infraestrutura
+import { Prisma } from '@prisma/client';
 import { Product } from '../../domain/entities/Product';
 import { Category } from '../../domain/entities/Category';
 import { Supplier } from '../../domain/entities/Supplier';
 import { IProductRepository, ProductFilters } from '../../domain/repositories/IProductRepository';
+import { ProductDAO } from '../dao/ProductDAO';
 
 export class PrismaProductRepository implements IProductRepository {
-  constructor(private prisma: PrismaClient) {}
+  constructor(private productDAO: ProductDAO) {}
 
   private mapToProduct(data: any): Product {
     return new Product({
@@ -50,38 +51,26 @@ export class PrismaProductRepository implements IProductRepository {
   }
 
   async create(product: Product): Promise<Product> {
-    const created = await this.prisma.product.create({
-      data: {
-        name: product.name,
-        description: product.description,
-        barcode: product.barcode,
-        salePrice: product.salePrice,
-        costPrice: product.costPrice,
-        quantity: product.quantity,
-        minQuantity: product.minQuantity,
-        unit: product.unit,
-        categoryId: product.categoryId,
-        supplierId: product.supplierId,
-        isActive: product.isActive,
-        expirationDate: product.expirationDate,
-      },
-      include: {
-        category: true,
-        supplier: true,
-      },
+    const created = await this.productDAO.create({
+      name: product.name,
+      description: product.description,
+      barcode: product.barcode,
+      salePrice: product.salePrice,
+      costPrice: product.costPrice,
+      quantity: product.quantity,
+      minQuantity: product.minQuantity,
+      unit: product.unit,
+      categoryId: product.categoryId,
+      supplierId: product.supplierId,
+      isActive: product.isActive,
+      expirationDate: product.expirationDate,
     });
 
     return this.mapToProduct(created);
   }
 
   async findById(id: string): Promise<Product | null> {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
-      include: {
-        category: true,
-        supplier: true,
-      },
-    });
+    const product = await this.productDAO.findById(id);
 
     if (!product) return null;
 
@@ -89,13 +78,7 @@ export class PrismaProductRepository implements IProductRepository {
   }
 
   async findByBarcode(barcode: string): Promise<Product | null> {
-    const product = await this.prisma.product.findUnique({
-      where: { barcode },
-      include: {
-        category: true,
-        supplier: true,
-      },
-    });
+    const product = await this.productDAO.findByBarcode(barcode);
 
     if (!product) return null;
 
@@ -115,11 +98,6 @@ export class PrismaProductRepository implements IProductRepository {
       if (filters.isActive !== undefined) {
         where.isActive = filters.isActive;
       }
-      if (filters.lowStock) {
-        where.quantity = {
-          lte: this.prisma.product.fields.minQuantity as any,
-        };
-      }
       if (filters.search) {
         where.OR = [
           { name: { contains: filters.search } },
@@ -129,125 +107,61 @@ export class PrismaProductRepository implements IProductRepository {
       }
     }
 
-    const products = await this.prisma.product.findMany({
-      where,
-      include: {
-        category: true,
-        supplier: true,
-      },
-      orderBy: { name: 'asc' },
-    });
+    const products = await this.productDAO.findMany(where);
 
     return products.map((product) => this.mapToProduct(product));
   }
 
   async findLowStock(): Promise<Product[]> {
-    const products = await this.prisma.product.findMany({
-      where: {
-        quantity: {
-          lte: 10, // Buscar produtos com quantidade <= minQuantity
-        },
-        isActive: true,
-      },
-      include: {
-        category: true,
-        supplier: true,
-      },
-      orderBy: { quantity: 'asc' },
-    });
+    const products = await this.productDAO.findLowStock();
 
-    // Filtrar manualmente para comparar com minQuantity de cada produto
-    return products
-      .filter((p) => p.quantity <= p.minQuantity)
-      .map((product) => this.mapToProduct(product));
+    return products.map((product) => this.mapToProduct(product));
   }
 
   async findExpired(): Promise<Product[]> {
-    const products = await this.prisma.product.findMany({
-      where: {
-        expirationDate: {
-          lt: new Date(),
-        },
-        isActive: true,
-      },
-      include: {
-        category: true,
-        supplier: true,
-      },
-      orderBy: { expirationDate: 'asc' },
-    });
+    const products = await this.productDAO.findExpired();
 
     return products.map((product) => this.mapToProduct(product));
   }
 
   async findByCategory(categoryId: string): Promise<Product[]> {
-    const products = await this.prisma.product.findMany({
-      where: { categoryId },
-      include: {
-        category: true,
-        supplier: true,
-      },
-      orderBy: { name: 'asc' },
-    });
+    const products = await this.productDAO.findByCategory(categoryId);
 
     return products.map((product) => this.mapToProduct(product));
   }
 
   async findBySupplier(supplierId: string): Promise<Product[]> {
-    const products = await this.prisma.product.findMany({
-      where: { supplierId },
-      include: {
-        category: true,
-        supplier: true,
-      },
-      orderBy: { name: 'asc' },
-    });
+    const products = await this.productDAO.findBySupplier(supplierId);
 
     return products.map((product) => this.mapToProduct(product));
   }
 
   async update(id: string, data: Partial<Product>): Promise<Product> {
-    const updated = await this.prisma.product.update({
-      where: { id },
-      data: {
-        name: data.name,
-        description: data.description,
-        barcode: data.barcode,
-        salePrice: data.salePrice,
-        costPrice: data.costPrice,
-        quantity: data.quantity,
-        minQuantity: data.minQuantity,
-        unit: data.unit,
-        categoryId: data.categoryId,
-        supplierId: data.supplierId,
-        isActive: data.isActive,
-        expirationDate: data.expirationDate,
-      },
-      include: {
-        category: true,
-        supplier: true,
-      },
+    const updated = await this.productDAO.update(id, {
+      name: data.name,
+      description: data.description,
+      barcode: data.barcode,
+      salePrice: data.salePrice,
+      costPrice: data.costPrice,
+      quantity: data.quantity,
+      minQuantity: data.minQuantity,
+      unit: data.unit,
+      categoryId: data.categoryId,
+      supplierId: data.supplierId,
+      isActive: data.isActive,
+      expirationDate: data.expirationDate,
     });
 
     return this.mapToProduct(updated);
   }
 
   async updateQuantity(id: string, quantity: number): Promise<Product> {
-    const updated = await this.prisma.product.update({
-      where: { id },
-      data: { quantity },
-      include: {
-        category: true,
-        supplier: true,
-      },
-    });
+    const updated = await this.productDAO.updateQuantity(id, quantity);
 
     return this.mapToProduct(updated);
   }
 
   async delete(id: string): Promise<void> {
-    await this.prisma.product.delete({
-      where: { id },
-    });
+    await this.productDAO.delete(id);
   }
 }
