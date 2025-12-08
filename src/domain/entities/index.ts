@@ -59,9 +59,6 @@ export { StockMovement, StockMovementProps, MovementType } from './StockMovement
 /** Usuário do sistema */
 export { User, UserProps, UserRole } from './User';
 
-/** Log de auditoria */
-export { AuditLog, AuditLogProps, AuditAction } from './AuditLog';
-
 // ==================== CLIENTES ====================
 
 /** Cliente do supermercado */
@@ -75,22 +72,6 @@ export { Sale, SaleProps, PaymentMethod, PaymentStatus } from './Sale';
 /** Item de venda */
 export { SaleItem, SaleItemProps } from './SaleItem';
 
-/** Comprovante de venda */
-export { Receipt, ReceiptProps, ReceiptType, ReceiptStatus } from './Receipt';
-
-// ==================== PROMOÇÕES ====================
-
-/** Promoção de produtos */
-export { Promotion, PromotionProps, DiscountType } from './Promotion';
-
-// ==================== COMPRAS ====================
-
-/** Pedido de compra */
-export { PurchaseOrder, PurchaseOrderProps, PurchaseOrderStatus } from './PurchaseOrder';
-
-/** Item de pedido de compra */
-export { PurchaseItem, PurchaseItemProps } from './PurchaseItem';
-
 // ==================== FINANCEIRO ====================
 
 /** Conta financeira (a pagar/receber) */
@@ -101,6 +82,3 @@ export {
   AccountStatus, 
   AccountCategory 
 } from './FinancialAccount';
-
-/** Fluxo de caixa */
-export { CashFlow, CashFlowProps, CashFlowType, CashFlowCategory } from './CashFlow';

@@ -1,72 +1,28 @@
 /**
- * SERVIDOR - Entry Point da Aplicação
+ * Servidor HTTP - Ponto de entrada da aplicação
  */
 
 import { createApp } from './app';
-import { config } from './config';
-import { logger } from './infrastructure/logging/logger';
-import { prisma } from './infrastructure/database/prisma-client';
 
-// Cria aplicação
 const app = createApp();
+const PORT = process.env.PORT || 3000;
 
-// Inicia servidor
-const PORT = config.app.port;
-
-app.listen(PORT, () => {
-  logger.info('🚀 Servidor iniciado com sucesso!', {
-    port: PORT,
-    environment: config.app.env,
-    version: config.app.version,
-    nodeVersion: process.version,
-  });
-  
-  logger.info(`📍 URLs disponíveis:`, {
-    api: `http://localhost:${PORT}${config.api.prefix}`,
-    health: `http://localhost:${PORT}/health`,
-  });
-});
-
-// Tratamento de erros não capturados
-process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-  logger.error('❌ Unhandled Promise Rejection', {
-    reason: reason?.message || reason,
-    stack: reason?.stack,
-  });
-  process.exit(1);
-});
-
-process.on('uncaughtException', (error: Error) => {
-  logger.error('❌ Uncaught Exception', {
-    message: error.message,
-    stack: error.stack,
-  });
-  process.exit(1);
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📝 API: http://localhost:${PORT}/api/v1`);
+  console.log(`❤️  Health: http://localhost:${PORT}/health`);
 });
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  logger.info('🛑 Recebido SIGINT, encerrando servidor...');
-  
-  try {
-    await prisma.$disconnect();
-    logger.info('✅ Banco de dados desconectado');
-    process.exit(0);
-  } catch (error: any) {
-    logger.error('❌ Erro ao desconectar banco', { error: error.message });
-    process.exit(1);
-  }
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, closing server...');
+  server.close(() => console.log('Server closed'));
 });
 
-process.on('SIGTERM', async () => {
-  logger.info('🛑 Recebido SIGTERM, encerrando servidor...');
-  
-  try {
-    await prisma.$disconnect();
-    logger.info('✅ Banco de dados desconectado');
+process.on('SIGINT', () => {
+  console.log('SIGINT received, closing server...');
+  server.close(() => {
+    console.log('Server closed');
     process.exit(0);
-  } catch (error: any) {
-    logger.error('❌ Erro ao desconectar banco', { error: error.message });
-    process.exit(1);
-  }
+  });
 });

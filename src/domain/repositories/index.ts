@@ -28,9 +28,6 @@ export {
 /** Repositório de usuários */
 export { IUserRepository } from './IUserRepository';
 
-/** Repositório de logs de auditoria */
-export { IAuditLogRepository, AuditLogFilters } from './IAuditLogRepository';
-
 // ==================== CLIENTES ====================
 
 /** Repositório de clientes */
@@ -41,19 +38,6 @@ export { IClientRepository, ClientFilters } from './IClientRepository';
 /** Repositório de vendas */
 export { ISaleRepository, SaleFilters, SalesSummary } from './ISaleRepository';
 
-// ==================== PROMOÇÕES ====================
-
-/** Repositório de promoções */
-export { IPromotionRepository, PromotionFilters } from './IPromotionRepository';
-
-// ==================== COMPRAS ====================
-
-/** Repositório de pedidos de compra */
-export { 
-  IPurchaseOrderRepository, 
-  PurchaseOrderFilters
-} from './IPurchaseOrderRepository';
-
 // ==================== FINANCEIRO ====================
 
 /** Repositório de contas financeiras */
@@ -62,10 +46,3 @@ export {
   FinancialAccountFilters,
   FinancialSummary 
 } from './IFinancialAccountRepository';
-
-/** Repositório de fluxo de caixa */
-export { 
-  ICashFlowRepository, 
-  CashFlowFilters,
-  CashFlowSummary 
-} from './ICashFlowRepository';
