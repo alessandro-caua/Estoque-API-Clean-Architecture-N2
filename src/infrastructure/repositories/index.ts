@@ -19,6 +19,3 @@ export { PrismaSaleRepository } from './PrismaSaleRepository';
 
 // Módulos Financeiros
 export { PrismaFinancialAccountRepository } from './PrismaFinancialAccountRepository';
-
-// Módulos de Compras
-export { PrismaPurchaseOrderRepository } from './PrismaPurchaseOrderRepository';
