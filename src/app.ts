@@ -212,7 +212,7 @@ export function createApp(): Application {
   const createSaleUseCase = new CreateSaleUseCase(saleRepository, productRepository, clientRepository, stockMovementRepository);
   const getSaleByIdUseCase = new GetSaleByIdUseCase(saleRepository);
   const getPaginatedSalesUseCase = new GetPaginatedSalesUseCase(saleRepository);
-  const cancelSaleUseCase = new CancelSaleUseCase(saleRepository, productRepository, clientRepository, stockMovementRepository);
+  const cancelSaleUseCase = new CancelSaleUseCase(saleRepository, productRepository, stockMovementRepository, clientRepository);
   const getTodaySalesUseCase = new GetTodaySalesUseCase(saleRepository);
   const getSalesSummaryUseCase = new GetSalesSummaryUseCase(saleRepository);
   const getSalesByDateRangeUseCase = new GetSalesByDateRangeUseCase(saleRepository);
